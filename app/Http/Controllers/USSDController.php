@@ -23,16 +23,17 @@ class UssdController extends Controller
     {
         date_default_timezone_set("Africa/Lagos");
         $sessionId  = $request->sessionId;
-        $serviceCode= $request->serviceCode;
+        $serviceCode = $request->serviceCode;
         $text       = $request->text;
         $input      = $request->input;
         $requestID  = date('YmdHi') . rand(99, 9999999);
         $mobile     = $request->phoneNumber;
-        $phoneNumber= str_replace("+234", "0", $mobile);
+        $phoneNumber = str_replace("+234", "0", $mobile);
         $customerReference = rand(99, 999999999999);
 
-        return "CON $this->ussdService->handleServices($sessionId, $phoneNumber, $serviceCode, $text, $input, $requestID, $customerReference) ";
+        $response = $this->ussdService->handleServices($sessionId, $phoneNumber, $serviceCode, $text, $input, $requestID, $customerReference);
+
+        header('Content-type: text/plain');
+        echo $response;
     }
-
-
 }
