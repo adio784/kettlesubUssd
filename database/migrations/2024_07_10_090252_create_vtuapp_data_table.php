@@ -24,9 +24,6 @@ return new class extends Migration
             $table->boolean('Ported_number')->nullable();
             $table->string('ident', 30);
             $table->boolean('refund')->nullable();
-            $table->unsignedInteger('network_id')->nullable();
-            $table->unsignedInteger('plan_id')->nullable();
-            $table->unsignedInteger('user_id')->nullable();
             $table->longText('api_response');
             $table->integer('network_id');
             $table->integer('plan_id');

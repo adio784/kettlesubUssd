@@ -20,8 +20,6 @@ return new class extends Migration
             $table->dateTime('create_date', 6);
             $table->string('ident', 30);
             $table->boolean('fund')->nullable();
-            $table->unsignedInteger('network_id')->nullable();
-            $table->unsignedInteger('user_id')->nullable();
             $table->timestamps();
             $table->integer('network_id');
             $table->integer('user_id');
