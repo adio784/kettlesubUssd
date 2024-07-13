@@ -27,11 +27,8 @@ return new class extends Migration
             $table->boolean('refund')->nullable();
             $table->string('customer_name', 250)->nullable();
             $table->string('customer_address', 500)->nullable();
-            $table->unsignedInteger('disco_name_id')->nullable();
-            $table->unsignedInteger('user_id')->nullable();
-            $table->timestamps();
-            $table->foreign('disco_name_id')->references('id')->on('vtuapp_disco_provider_name');
-            $table->foreign('user_id')->references('id')->on('vtuapp_customuser');
+            $table->integer('disco_name_id');
+            $table->integer('user_id');
             $table->timestamps();
         });
     }

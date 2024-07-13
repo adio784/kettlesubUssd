@@ -22,13 +22,9 @@ return new class extends Migration
             $table->string('ident', 300);
             $table->boolean('refund')->nullable();
             $table->string('customer_name', 70)->nullable();
-            $table->unsignedInteger('cablename_id')->nullable();
-            $table->unsignedInteger('cableplan_id')->nullable();
-            $table->unsignedInteger('user_id')->nullable();
-            $table->timestamps();
-            $table->foreign('cablename_id')->references('id')->on('vtuapp_cable');
-            $table->foreign('cableplan_id')->references('id')->on('vtuapp_cableplan');
-            $table->foreign('user_id')->references('id')->on('vtuapp_customuser');
+            $table->integer('cablename_id');
+            $table->integer('cableplan_id');
+            $table->integer('user_id');
             $table->timestamps();
         });
     }

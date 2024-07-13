@@ -23,8 +23,8 @@ return new class extends Migration
             $table->unsignedInteger('network_id')->nullable();
             $table->unsignedInteger('user_id')->nullable();
             $table->timestamps();
-            $table->foreign('network_id')->references('id')->on('vtuapp_network');
-            $table->foreign('user_id')->references('id')->on('vtuapp_customuser');
+            $table->integer('network_id');
+            $table->integer('user_id');
             $table->timestamps();
         });
     }

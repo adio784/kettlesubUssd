@@ -28,9 +28,9 @@ return new class extends Migration
             $table->unsignedInteger('plan_id')->nullable();
             $table->unsignedInteger('user_id')->nullable();
             $table->longText('api_response');
-            $table->foreign('network_id')->references('id')->on('vtuapp_network');
-            $table->foreign('plan_id')->references('id')->on('vtuapp_plan');
-            $table->foreign('user_id')->references('id')->on('vtuapp_customuser');
+            $table->integer('network_id');
+            $table->integer('plan_id');
+            $table->integer('user_id');
             $table->timestamps();
         });
     }
