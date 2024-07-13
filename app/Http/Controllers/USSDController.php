@@ -31,7 +31,7 @@ class UssdController extends Controller
         $phoneNumber= str_replace("+234", "0", $mobile);
         $customerReference = rand(99, 999999999999);
 
-        return $this->ussdService->handleServices($sessionId, $phoneNumber, $serviceCode, $text, $input, $requestID, $customerReference);
+        return "CON $this->ussdService->handleServices($sessionId, $phoneNumber, $serviceCode, $text, $input, $requestID, $customerReference) ";
     }
 
 
