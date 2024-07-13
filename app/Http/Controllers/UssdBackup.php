@@ -700,8 +700,6 @@ class UssdServiceController extends Controller
         return $response;
     }
 
-
-
     // Function Airtime SubMenu
     private function BuyAirtime()
     {
