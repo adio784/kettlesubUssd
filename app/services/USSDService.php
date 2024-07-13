@@ -664,9 +664,10 @@ class USSDService
             $response = "END Invalid input. Please try again.";
         }
 
+        return $response;
         // Send the response to the USSD gateway
-        header('Content-type: text/plain');
-        echo $response;
+        // header('Content-type: text/plain');
+        // echo $response;
 
     }
     // Public service function ends here ....................................................................
