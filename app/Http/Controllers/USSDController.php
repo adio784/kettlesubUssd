@@ -19,7 +19,7 @@ class UssdController extends Controller
     {
         $this->ussdService = $ussdService;
     }
-    public function UssdService(Request $request)
+    public function handleServices(Request $request)
     {
         date_default_timezone_set("Africa/Lagos");
         $sessionId  = $request->sessionId;
@@ -27,7 +27,7 @@ class UssdController extends Controller
         $text       = $request->text;
         $input      = $request->input;
         $requestID  = date('YmdHi') . rand(99, 9999999);
-        $mobile     = $request->phoneNumber;
+        $mobile     = '07035743427';//$request->phoneNumber;
         $phoneNumber= str_replace("+234", "0", $mobile);
         $customerReference = rand(99, 999999999999);
 

@@ -9,6 +9,8 @@ class VtuappBillpayment extends Model
 {
     use HasFactory;
 
+    protected $table = 'vtuapp_billpayment';
+
     protected $fillable = [
         'amount',
         'paid_amount',

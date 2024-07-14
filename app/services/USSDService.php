@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class USSDService
 {
+    private $customerReference;
     private $simServerServices;
     private $dataServices;
     private $historyServices;
@@ -22,19 +23,10 @@ class USSDService
     private $UserName;
     private $CreatePin;
 
-    private $userId;
-    private $sessionId;
-    private $serviceCode;
-    private $text;
-    private $input;
-    private $requestID;
-    private $customerReference;
-
     public function __construct(
         HistoryServices $historyServices, SimServerServices  $simServerServices,
         DataServices $dataServices, UserServices $userServices,
-        AirtimeServices $airtimeServices, $userId, $sessionId, $serviceCode,
-        $text, $input, $requestID, $customerReference )
+        AirtimeServices $airtimeServices )
     {
 
         $this->simServerServices = $simServerServices;
@@ -42,14 +34,7 @@ class USSDService
         $this->dataServices = $dataServices;
         $this->userServices = $userServices;
         $this->airtimeServices = $airtimeServices;
-
-        $this->userId = $userId;
-        $this->sessionId = $sessionId;
-        $this->serviceCode = $serviceCode;
-        $this->text = $text;
-        $this->input = $input;
-        $this->requestID = $requestID;
-        $this->customerReference = $customerReference;
+        $this->customerReference = rand(99, 999999999999);
 
     }
 
@@ -180,7 +165,7 @@ class USSDService
 
                                 // .....................................................................................................................
 
-                                $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'mtn', $planVal, $planCode, $createData->data->reference, $phoneNo, $customer_reference, $planPrice, $createData->data->msg);
+                                $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'mtn', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
 
                                 if($savedHistory) {
 
@@ -279,7 +264,7 @@ class USSDService
 
                                 // .....................................................................................................................
 
-                                $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $createData->data->reference, $phoneNo, $customer_reference, $planPrice, $createData->data->msg);
+                                $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
 
                                 if($savedHistory) {
 
@@ -374,7 +359,7 @@ class USSDService
 
                             // .....................................................................................................................
 
-                            $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $createData->data->reference, $phoneNo, $customer_reference, $planPrice, $createData->data->msg);
+                            $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
 
                             if($savedHistory) {
 
@@ -440,7 +425,7 @@ class USSDService
 
                             // .....................................................................................................................
 
-                            $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $createData->data->reference, $phoneNo, $customer_reference, $planPrice, $createData->data->msg);
+                            $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
 
                             if($savedHistory) {
 
@@ -688,7 +673,7 @@ class USSDService
 
     public function generateMenu()
     {
-        $response = "CON Dear $this->name, Welcome to Kettlesub. What Would You Like To Do ? \n";
+        $response = "CON Dear $this->Name, Welcome to Kettlesub. What Would You Like To Do ? \n";
         $response .= "1. Account Balance \n";
         $response .= "2. Buy Data \n";
         $response .= "3. Buy Airtime \n";
@@ -813,25 +798,25 @@ class USSDService
     }
 
     // Store Data in History Table
-    private function saveData($uid, $apiMd, $nwt, $planValue, $product_code, $ref, $phoneNumber, $customer_ref, $data_price, $msg)
+    private function saveData($uid, $apiMd, $nwt, $planValue, $product_code, $phoneNumber, $customer_ref, $bb, $ba, $data_price, $msg)
     {
         $commission = 0.0;
         $HistoryDetails = [
-            'data_type' = $planValue,
-            'mobile_number' = $phoneNumber,
-            'Status' = 'Processing',
-            'medium' = 'USSD',
-            'create_date' = Carbon::now(),
-            'balance_before' = $bb,
-            'balance_after' = $ba,
-            'plan_amount' = $data_price,
-            'Ported_number' = 0,
-            'ident' = $customer_ref,
-            'refund' = 0,
-            'network_id' = $nwt,
-            'plan_id' = $product_code,
-            'user_id' = $uid,
-            'api_response' = '',
+            'data_type' => $planValue,
+            'mobile_number' => $phoneNumber,
+            'Status' => 'Processing',
+            'medium' => $apiMd,
+            'create_date' => Carbon::now(),
+            'balance_before' => $bb,
+            'balance_after' => $ba,
+            'plan_amount' => $data_price,
+            'Ported_number' => 0,
+            'ident' => $customer_ref,
+            'refund' => 0,
+            'network_id' => $nwt,
+            'plan_id' => $product_code,
+            'user_id' => $uid,
+            'api_response' => $msg,
         ];
 
         $output =   $this->historyServices->createDataHistory($HistoryDetails);
@@ -840,24 +825,24 @@ class USSDService
     }
 
     // Store Airtime in History Table
-    private function saveAirtime($uid, $apiMd, $nwt, $planValue, $product_code, $ref, $phoneNumber, $customer_ref, $data_price, $msg)
+    private function saveAirtime($uid, $nwt, $amount, $paidMoney, $phoneNumber, $customer_ref, $bb, $ba)
     {
         $commission = 0.0;
         $HistoryDetails = [
-            'mobile_number' = $phoneNumber,
-            'airtime_type' = 'VTU',
-            'amount' = $amount,
-            'paid_amount' = $paidMoney,
-            'Status' = 'Processing',
-            'create_date' = Carbon::now(),
-            'balance_before' = $bb,
-            'balance_after' = $ba,
-            'Ported_number' = 0,
-            'medium' = 'USSD',
-            'ident' = $customer_ref,
-            'refund' = 0,
-            'network_id' = $nwt,
-            'user_id' = $uid,
+            'mobile_number' => $phoneNumber,
+            'airtime_type' => 'VTU',
+            'amount' => $amount,
+            'paid_amount' => $paidMoney,
+            'Status' => 'Processing',
+            'create_date' => Carbon::now(),
+            'balance_before' => $bb,
+            'balance_after' => $ba,
+            'Ported_number' => 0,
+            'medium' => 'USSD',
+            'ident' => $customer_ref,
+            'refund' => 0,
+            'network_id' => $nwt,
+            'user_id' => $uid,
         ];
 
         $output =   $this->historyServices->createAirtimeHistory($HistoryDetails);
@@ -918,7 +903,7 @@ class USSDService
         return $this->endSession("Thank you for purchasing $amount airtime for $phoneNumber on $network network.");
     }
 
-    private function VTPassAirtimePurchase($reqID, $ntw, $amt, $phn, $pamt, $cstReff)
+    private function VTPassAirtimePurchase($reqID, $ntw, $amt, $phn, $pamt, $cstReff, $bb, $ba)
     {
         $DataDetails = [
             'request_id'        => $reqID,
@@ -930,20 +915,20 @@ class USSDService
         if($createNigAirt){
 
             $AirtimeTransDetail = [
-                'mobile_number' = $createNigAirt->content->transactions->unique_element,
-                'airtime_type'  = $createNigAirt->content->transactions->product_name,
-                'amount'        = $amt,
-                'paid_amount'   = $pamt,
-                'Status'        = 'Processing',
-                'create_date'   = Carbon::now(),
-                'balance_before'= $bb,
-                'balance_after' = $ba,
-                'Ported_number' = 0,
-                'medium'        = 'USSD',
-                'ident'         = $cstReff,
-                'refund'        = 0,
-                'network_id'    = $ntw,
-                'user_id'       = $this->UserId,
+                'mobile_number' => $createNigAirt->content->transactions->unique_element,
+                'airtime_type'  => $createNigAirt->content->transactions->product_name,
+                'amount'        => $amt,
+                'paid_amount'   => $pamt,
+                'Status'        => 'Processing',
+                'create_date'   => Carbon::now(),
+                'balance_before'=> $bb,
+                'balance_after' => $ba,
+                'Ported_number' => 0,
+                'medium'        => 'USSD',
+                'ident'         => $cstReff,
+                'refund'        => 0,
+                'network_id'    => $ntw,
+                'user_id'       => $this->UserId,
             ];
 
             $this->historyServices->createAirtimeHistory($AirtimeTransDetail);

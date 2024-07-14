@@ -2,9 +2,6 @@
 
 use App\Http\Controllers\ProcessUSSDController;
 use Illuminate\Support\Facades\Route;
-
-Route::get('/', function () {
-    return view('welcome');
-});
+use App\Http\Controllers\USSDController;
 
 Route::post('/ussd_response', [ProcessUSSDController::class, 'handleServices']);

@@ -9,6 +9,8 @@ class VtuappNetwork extends Model
 {
     use HasFactory;
 
+    protected $table = 'vtuapp_network';
+
     protected $fillable = [
         'name',
         'status',

@@ -9,6 +9,8 @@ class VtuappAirtime extends Model
 {
     use HasFactory;
 
+    protected $table = 'vtuapp_airtime';
+
     protected $fillable = [
         'pin',
         'amount',

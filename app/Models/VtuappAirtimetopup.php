@@ -9,6 +9,8 @@ class VtuappAirtimetopup extends Model
 {
     use HasFactory;
 
+    protected $table = 'vtuapp_airtimetopup';
+
     protected $fillable = [
         'mobile_number',
         'airtime_type',

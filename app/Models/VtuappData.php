@@ -9,6 +9,8 @@ class VtuappData extends Model
 {
     use HasFactory;
 
+    protected $table = 'vtuapp_data';
+
     protected $fillable = [
         'data_type',
         'mobile_number',

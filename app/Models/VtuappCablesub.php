@@ -9,6 +9,8 @@ class VtuappCablesub extends Model
 {
     use HasFactory;
 
+    protected $table = 'vtuapp_cablesub';
+
     protected $fillable = [
         'smart_card_number',
         'balance_before',

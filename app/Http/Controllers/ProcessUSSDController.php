@@ -16,6 +16,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
+session_start();
+
 class ProcessUSSDController extends Controller
 {
     //
@@ -29,20 +31,12 @@ class ProcessUSSDController extends Controller
     private $Balance;
     private $UserName;
     private $CreatePin;
-
-    private $userId;
-    private $sessionId;
-    private $serviceCode;
-    private $text;
-    private $input;
-    private $requestID;
     private $customerReference;
 
     public function __construct(
         HistoryServices $historyServices, SimServerServices  $simServerServices,
         DataServices $dataServices, UserServices $userServices,
-        AirtimeServices $airtimeServices, $userId, $sessionId, $serviceCode,
-        $text, $input, $requestID, $customerReference )
+        AirtimeServices $airtimeServices )
     {
 
         $this->simServerServices = $simServerServices;
@@ -50,20 +44,16 @@ class ProcessUSSDController extends Controller
         $this->dataServices = $dataServices;
         $this->userServices = $userServices;
         $this->airtimeServices = $airtimeServices;
-
-        $this->userId = $userId;
-        $this->sessionId = $sessionId;
-        $this->serviceCode = $serviceCode;
-        $this->text = $text;
-        $this->input = $input;
-        $this->requestID = $requestID;
-        $this->customerReference = $customerReference;
+        $this->customerReference = rand(99, 999999999999);
 
     }
 
     // Public service function starts here ....................................................................
     public function handleServices(Request $request)
     {
+        // return response()->json([
+        //     'message' => 'Welcome to KETTLESUB USSD API',
+        // ],200);
         // Public service function starts here ..................................................................
         date_default_timezone_set("Africa/Lagos");
         $sessionId  = $request->sessionId;
@@ -73,7 +63,7 @@ class ProcessUSSDController extends Controller
         $requestID  = date('YmdHi') . rand(99, 9999999);
         $mobile     = $request->phoneNumber;
         $phoneNumber= str_replace("+234", "0", $mobile);
-        $customerReference = rand(99, 999999999999);
+        $customerReference = $this->customerReference;
         $response      =   "";
         $operator      =   "";
 
@@ -696,8 +686,8 @@ class ProcessUSSDController extends Controller
         $response    .=   "1. Account Balance \n";
         $response    .=   "2. Buy Data \n";
         $response    .=   "3. Buy Airtime \n";
-        $response    .=   "4. Buy Cable \n";
-        $response    .=   "5. Pay Your Bill \n";
+        // $response    .=   "4. Buy Cable \n";
+        // $response    .=   "5. Pay Your Bill \n";
         $response    .=   "6. Register New Account \n";
         $response    .=   "7. Latest Transaction \n";
 

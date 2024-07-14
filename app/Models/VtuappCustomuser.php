@@ -9,6 +9,8 @@ class VtuappCustomuser extends Model
 {
     use HasFactory;
 
+    protected $table = 'vtuapp_customuser';
+
     protected $fillable = [
         'password',
         'last_login',
