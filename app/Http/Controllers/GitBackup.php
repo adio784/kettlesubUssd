@@ -5,3 +5,5 @@ git push -u origin main
 dns1.namecheaphosting.com and dns2.namecheaphosting.com.
 
 kettlesubUssd
+
+https://ussd.kettlesub.com/api/ussd_response

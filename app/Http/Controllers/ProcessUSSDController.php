@@ -79,8 +79,8 @@ class ProcessUSSDController extends Controller
         $this->Name         =   $User->last_name . ' ' . $User->first_name;
         $this->UserId       =   $User->id;
         $this->UserName     =   $User->username;
-        $this->Balance      =   $User->balance;
-        $this->CreatePin    =   $User->create_pin;
+        $this->Balance      =   $User->Account_Balance;
+        $this->CreatePin    =   $User->pin;
 
         // -------------------------------------------------------------------------------->
 
@@ -698,7 +698,7 @@ class ProcessUSSDController extends Controller
     private function SwitchServer($networkId)
     {
         $simServer = $this->simServerServices->getActiveSimServers($networkId);
-        return $simServer->sim_server;
+        return $simServer->data_vending_medium;
     }
 
     // Function Airtime SubMenu

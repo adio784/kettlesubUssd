@@ -1,4 +1,5 @@
 <?php
+
 namespace App\services;
 
 use App\Models\VtuappAirtimetopup;
@@ -24,10 +25,12 @@ class USSDService
     private $CreatePin;
 
     public function __construct(
-        HistoryServices $historyServices, SimServerServices  $simServerServices,
-        DataServices $dataServices, UserServices $userServices,
-        AirtimeServices $airtimeServices )
-    {
+        HistoryServices $historyServices,
+        SimServerServices  $simServerServices,
+        DataServices $dataServices,
+        UserServices $userServices,
+        AirtimeServices $airtimeServices
+    ) {
 
         $this->simServerServices = $simServerServices;
         $this->historyServices = $historyServices;
@@ -35,7 +38,6 @@ class USSDService
         $this->userServices = $userServices;
         $this->airtimeServices = $airtimeServices;
         $this->customerReference = rand(99, 999999999999);
-
     }
 
     // Public service function starts here ....................................................................
@@ -58,8 +60,8 @@ class USSDService
         $this->Name         =   $User->last_name . ' ' . $User->first_name;
         $this->UserId       =   $User->id;
         $this->UserName     =   $User->username;
-        $this->Balance      =   $User->balance;
-        $this->CreatePin    =   $User->create_pin;
+        $this->Balance      =   $User->Account_Balance;
+        $this->CreatePin    =   $User->pin;
 
         // -------------------------------------------------------------------------------->
 
@@ -73,21 +75,18 @@ class USSDService
 
 
         // Main Menu
-        if ( empty($text) || $text == "") {
+        if (empty($text) || $text == "") {
 
             $response     =   $this->startMenu();
-
         }
 
         // Account Balance
-        elseif( $text == "1")
-        {
+        elseif ($text == "1") {
             $response    =   "END Dear $this->Name, Your Account Balance Is : ₦ $this->Balance ";
         }
 
         // Buy Data
-        elseif( $text == "2")
-        {
+        elseif ($text == "2") {
             $response    =   $this->BuyData();
         }
         // --------------------------------------- INTERNET DATA PROCESSING ----------------------------------------------------------------->
@@ -96,360 +95,320 @@ class USSDService
         // ...................................................
 
 
-            elseif ($arrayLength === 2 && $inputArray[0] === '2' && $inputArray[1] === '1') {
+        elseif ($arrayLength === 2 && $inputArray[0] === '2' && $inputArray[1] === '1') {
 
-                $response = $this->MtnData();
+            $response = $this->MtnData();
+        } elseif ($arrayLength === 2 && $inputArray[0] === '2' && $inputArray[1] === '2') {
 
-            } elseif ($arrayLength === 2 && $inputArray[0] === '2' && $inputArray[1] === '2') {
+            $response = $this->AirtelData();
+        } elseif ($arrayLength === 2 && $inputArray[0] === '2' && $inputArray[1] === '3') {
 
-                $response = $this->AirtelData();
+            $response = $this->nMobileData();
+        } elseif ($arrayLength === 2 && $inputArray[0] === '2' && $inputArray[1] === '4') {
 
-            } elseif ($arrayLength === 2 && $inputArray[0] === '2' && $inputArray[1] === '3') {
+            $response = $this->GloData();
+        } elseif ($arrayLength === 3 && $inputArray[0] === '2') {
 
-                $response = $this->nMobileData();
+            $response   =   $this->enterPhonenumber();
+        } elseif ($arrayLength === 4 && $inputArray[0] === '2') {
 
-            } elseif ($arrayLength === 2 && $inputArray[0] === '2' && $inputArray[1] === '4') {
+            $response   =   $this->inputPIN();
+        }
+        // Process MTN Data
+        elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '1') {
 
-                $response = $this->GloData();
-
-            } elseif ($arrayLength === 3 && $inputArray[0] === '2') {
-
-                $response   =   $this->enterPhonenumber();
-
-            } elseif ($arrayLength === 4 && $inputArray[0] === '2') {
-
-                $response   =   $this->inputPIN();
-
-            }
-            // Process MTN Data
-            elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '1') {
-
-                $activeServer   =   $this->SwitchServer(1);
-                $networks       =   $inputArray[1];
-                $planSelect     =   (int)$inputArray[2];
-                $phoneNo        =   $inputArray[3];
-                $pin            =   $inputArray[4];
-                $prices         =   [250, 500, 750, 1250, 2500];
-                $pVals          =   [1, 2, 3, 5, 10];
-                $pCodes         =   ['950', '215', '516', '439', '14525'];
-                $planCode       =   $pCodes[$planSelect - 1];
-                $planVal        =   $pVals[$planSelect - 1];
-                $planPrice      =   $prices[$planSelect - 1];
-                $balance        =   $this->walletBalance($this->UserId);
+            $activeServer   =   $this->SwitchServer(1);
+            $networks       =   $inputArray[1];
+            $planSelect     =   (int)$inputArray[2];
+            $phoneNo        =   $inputArray[3];
+            $pin            =   $inputArray[4];
+            $prices         =   [250, 500, 750, 1250, 2500];
+            $pVals          =   [1, 2, 3, 5, 10];
+            $pCodes         =   ['950', '215', '516', '439', '14525'];
+            $planCode       =   $pCodes[$planSelect - 1];
+            $planVal        =   $pVals[$planSelect - 1];
+            $planPrice      =   $prices[$planSelect - 1];
+            $balance        =   $this->walletBalance($this->UserId);
 
 
-                if( $this->userServices->checkPin($this->UserId, $pin) == true){
+            if ($this->userServices->checkPin($this->UserId, $pin) == true) {
 
-                    if( $balance < $planPrice )
-                    {
+                if ($balance < $planPrice) {
 
-                        $response   =   "END Insufficient fund, try later ";
-
-                    } else {
-
-                        if( $activeServer == 'Smeplug' )
-                        {
-
-                            $planIDs        =   ['2', '3', '4', '5', '7'];
-                            $planId         =   $planIDs[$planSelect-1];
-                            $createData     =   $this->SmeplugData(1, 1, $phoneNo);
-
-                            if( $createData && $createData->status == true){
-
-                                Log::debug(['Error Received' => $createData]);
-                                // Update wallet .......................................................................................................
-
-                                $new_bal_process = $balance - $planPrice;
-                                $walletDetails = [ 'Account_Balance' => $new_bal_process];
-                                $this->userServices->update($this->UserId, $walletDetails);
-
-                                // .....................................................................................................................
-
-                                $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'mtn', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
-
-                                if($savedHistory) {
-
-                                    $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
-
-                                } else {
-
-                                    $response   =   "END Operation failed, try later";
-                                }
-
-                            } else {
-                                Log::debug(['Error Received' => $createData]);
-
-                                $response   =   "END Error occured, try later";
-                            }
-                        }
-                        else
-                        {
-
-                            $planIDs        =   ['data_share_1gb:device:USSD_SHARE_FULL', 'data_share_2gb:device:USSD_SHARE_FULL', 'data_share_3gb:device:USSD_SHARE_FULL', 'data_share_5gb:device:USSD_SHARE_FULL', 'data_share_10gb:device:USSD_SHARE_FULL'];
-                            $planId         =   $planIDs[$planSelect-1];
-                            $reqstID        =   date('YmdHi').rand(99, 9999999);
-                            $getCredentials =   $this->SwitchServer('Smeplug');
-                            $createData     =   $this->SimserverData(1, $getCredentials->access_token, $planId, $phoneNo, $reqstID);
-
-                            if( $createData ){
-
-                                // Update wallet .......................................................................................................
-
-                                $new_bal_process = $balance - $planPrice;
-                                $walletDetails = [ 'Account_Balance' => $new_bal_process ];
-                                $this->userServices->update($this->UserId, $walletDetails);
-
-                                // .....................................................................................................................
-
-                                Log::debug(['Success Data' => $createData]);
-
-                                $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
-
-                            } else {
-                                Log::debug(['Error Received' => $createData]);
-
-                                $response   =   "END Error occured, try later";
-                            }
-                        }
-                    }
-
+                    $response   =   "END Insufficient fund, try later ";
                 } else {
 
-                    $response   =   "END Invalid PIN";
-                }
+                    if ($activeServer == 'Smeplug') {
 
-            }
+                        $planIDs        =   ['2', '3', '4', '5', '7'];
+                        $planId         =   $planIDs[$planSelect - 1];
+                        $createData     =   $this->SmeplugData(1, 1, $phoneNo);
 
-            // Process AIRTEL Data
-            elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '2') {
-
-                $activeServer   =   $this->SwitchServer(2);
-                $networks       =   $inputArray[1];
-                $planSelect     =   (int)$inputArray[2];
-                $phoneNo        =   $inputArray[3];
-                $pin            =   $inputArray[4];
-                $prices         =   [350, 700, 1750, 3400, 6800];
-                $pVals          =   [1, 2, 5, 10, 20];
-                $pCodes         =   ['293', '666', '454', '119', '481'];
-                $planCode       =   $pCodes[$planSelect - 1];
-                $planVal        =   $pVals[$planSelect - 1];
-                $planPrice      =   $prices[$planSelect - 1];
-                $balance        =   $this->walletBalance($this->UserId);
-
-
-                if( $this->userServices->checkPin($this->UserId, $pin) == true){
-
-                    if( $balance < $planPrice )
-                    {
-
-                        $response   =   "END Insufficient fund, try later ";
-
-                    } else {
-
-                        if( $activeServer == 'Smeplug' )
-                        {
-
-                            $planIDs        =   ['AIR1000', 'AIR2000', 'AIR2500', '5', '7'];
-                            $planId         =   $planIDs[$planSelect-1];
-                            $createData     =   $this->SmeplugData(2, $planId, $phoneNo);
-
-                            if( $createData && $createData->status == true){
-
-                                Log::debug(['Error Received' => $createData]);
-                                // Update wallet .......................................................................................................
-
-                                $new_bal_process = $balance - $planPrice;
-                                $walletDetails = [ 'Account_Balance' => $new_bal_process ];
-                                $this->userServices->update($this->UserId, $walletDetails);
-
-                                // .....................................................................................................................
-
-                                $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
-
-                                if($savedHistory) {
-
-                                    $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
-
-                                } else {
-
-                                    $response   =   "END Operation failed, try later";
-                                }
-
-                            } else {
-                                Log::debug(['Error Received' => $createData]);
-
-                                $response   =   "END Error occured, try later";
-                            }
-                        }
-                        else
-                        {
-
-                            $planIDs        =   ['airtel_1gb_30days:cg:nil', 'airtel_2gb_30days:cg:nil', 'airtel_5gb_30days:cg:nil', 'airtel_10gb_30days:cg:nil', 'airtel_20gb_30days:cg:nil'];
-                            $planId         =   $planIDs[$planSelect-1];
-                            $reqstID        =   date('YmdHi').rand(99, 9999999);
-                            $getCredentials =   $this->SwitchServer('Smeplug');;
-                            $createData     =   $this->SimserverData(3, $getCredentials->access_token, $planId, $phoneNo, $reqstID);
-
-                            if( $createData ){
-
-                                // Update wallet .......................................................................................................
-
-                                $new_bal_process = $balance - $planPrice;
-                                $walletDetails = [ 'Account_Balance' => $new_bal_process ];
-                                $this->userServices->update($this->UserId, $walletDetails);
-
-                                // .....................................................................................................................
-
-                                Log::debug(['Success Data' => $createData]);
-
-                                $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
-
-                            } else {
-                                Log::debug(['Error Received' => $createData]);
-
-                                $response   =   "END Error occured, try later";
-                            }
-                        }
-                    }
-
-                } else {
-
-                    $response   =   "END Invalid PIN";
-                }
-
-            }
-
-            // Process 9MOBILE Data
-            elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '3') {
-
-                $networks       =   $inputArray[1];
-                $planSelect     =   (int)$inputArray[2];
-                $phoneNo        =   $inputArray[3];
-                $pin            =   $inputArray[4];
-                $prices         =   [900, 1080, 1350, 1800, 3600];
-                $pVals          =   [1.5, 2, 3, 4.5, 11];
-                $pCodes         =   ['167', '479', '587', '731', '109'];
-                $planCode       =   $pCodes[$planSelect - 1];
-                $planVal        =   $pVals[$planSelect - 1];
-                $planPrice      =   $prices[$planSelect - 1];
-                $balance        =   $this->walletBalance($this->UserId);
-
-
-                if( $this->userServices->checkPin($this->UserId, $pin) == true){
-
-                    if( $balance < $planPrice )
-                    {
-
-                        $response   =   "END Insufficient fund, try later ";
-
-                    } else {
-
-                        $planIDs        =   ['9MOB1000', '9MOB2000', '9MOB3000', '9MOB34500', '9MOB4000'];
-                        $planId         =   $planIDs[$planSelect-1];
-                        $createData     =   $this->SmeplugData(3, $planId, $phoneNo);
-
-                        if( $createData && $createData->status == true){
+                        if ($createData && $createData->status == true) {
 
                             Log::debug(['Error Received' => $createData]);
                             // Update wallet .......................................................................................................
 
                             $new_bal_process = $balance - $planPrice;
-                            $walletDetails = [ 'Account_Balance' => $new_bal_process ];
+                            $walletDetails = ['Account_Balance' => $new_bal_process];
+                            $this->userServices->update($this->UserId, $walletDetails);
+
+                            // .....................................................................................................................
+
+                            $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'mtn', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
+
+                            if ($savedHistory) {
+
+                                $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
+                            } else {
+
+                                $response   =   "END Operation failed, try later";
+                            }
+                        } else {
+                            Log::debug(['Error Received' => $createData]);
+
+                            $response   =   "END Error occured, try later";
+                        }
+                    } else {
+
+                        $planIDs        =   ['data_share_1gb:device:USSD_SHARE_FULL', 'data_share_2gb:device:USSD_SHARE_FULL', 'data_share_3gb:device:USSD_SHARE_FULL', 'data_share_5gb:device:USSD_SHARE_FULL', 'data_share_10gb:device:USSD_SHARE_FULL'];
+                        $planId         =   $planIDs[$planSelect - 1];
+                        $reqstID        =   date('YmdHi') . rand(99, 9999999);
+                        $getCredentials =   $this->SwitchServer('Smeplug');
+                        $createData     =   $this->SimserverData(1, $getCredentials->access_token, $planId, $phoneNo, $reqstID);
+
+                        if ($createData) {
+
+                            // Update wallet .......................................................................................................
+
+                            $new_bal_process = $balance - $planPrice;
+                            $walletDetails = ['Account_Balance' => $new_bal_process];
+                            $this->userServices->update($this->UserId, $walletDetails);
+
+                            // .....................................................................................................................
+
+                            Log::debug(['Success Data' => $createData]);
+
+                            $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
+                        } else {
+                            Log::debug(['Error Received' => $createData]);
+
+                            $response   =   "END Error occured, try later";
+                        }
+                    }
+                }
+            } else {
+
+                $response   =   "END Invalid PIN";
+            }
+        }
+
+        // Process AIRTEL Data
+        elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '2') {
+
+            $activeServer   =   $this->SwitchServer(2);
+            $networks       =   $inputArray[1];
+            $planSelect     =   (int)$inputArray[2];
+            $phoneNo        =   $inputArray[3];
+            $pin            =   $inputArray[4];
+            $prices         =   [350, 700, 1750, 3400, 6800];
+            $pVals          =   [1, 2, 5, 10, 20];
+            $pCodes         =   ['293', '666', '454', '119', '481'];
+            $planCode       =   $pCodes[$planSelect - 1];
+            $planVal        =   $pVals[$planSelect - 1];
+            $planPrice      =   $prices[$planSelect - 1];
+            $balance        =   $this->walletBalance($this->UserId);
+
+
+            if ($this->userServices->checkPin($this->UserId, $pin) == true) {
+
+                if ($balance < $planPrice) {
+
+                    $response   =   "END Insufficient fund, try later ";
+                } else {
+
+                    if ($activeServer == 'Smeplug') {
+
+                        $planIDs        =   ['AIR1000', 'AIR2000', 'AIR2500', '5', '7'];
+                        $planId         =   $planIDs[$planSelect - 1];
+                        $createData     =   $this->SmeplugData(2, $planId, $phoneNo);
+
+                        if ($createData && $createData->status == true) {
+
+                            Log::debug(['Error Received' => $createData]);
+                            // Update wallet .......................................................................................................
+
+                            $new_bal_process = $balance - $planPrice;
+                            $walletDetails = ['Account_Balance' => $new_bal_process];
                             $this->userServices->update($this->UserId, $walletDetails);
 
                             // .....................................................................................................................
 
                             $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
 
-                            if($savedHistory) {
+                            if ($savedHistory) {
 
                                 $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
-
                             } else {
 
                                 $response   =   "END Operation failed, try later";
                             }
-
                         } else {
                             Log::debug(['Error Received' => $createData]);
 
                             $response   =   "END Error occured, try later";
                         }
-
-                    }
-
-                } else {
-
-                    $response   =   "END Invalid PIN";
-                }
-
-            }
-
-            // Process GLO Data
-            elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '4') {
-
-                $networks       =   $inputArray[1];
-                $planSelect     =   (int)$inputArray[2];
-                $phoneNo        =   $inputArray[3];
-                $pin            =   $inputArray[4];
-                $prices         =   [475, 950, 1425, 1900, 2375];
-                $pVals          =   [1, 2.3, 3.7, 5.2, 7];
-                $pCodes         =   ['ussd_glo_1gb', 'ussd_glo_2.3gb', 'ussd_glo_3.7gb', 'ussd_glo_5.2gb', 'ussd_glo_7gb'];
-                $planCode       =   $pCodes[$planSelect - 1];
-                $planVal        =   $pVals[$planSelect - 1];
-                $planPrice      =   $prices[$planSelect - 1];
-                $balance        =   $this->walletBalance($this->UserId);
-
-
-                if( $this->userServices->checkPin($this->UserId, $pin) == true){
-
-                    if( $balance < $planPrice )
-                    {
-
-                        $response   =   "END Insufficient fund, try later ";
-
                     } else {
 
-                        $planIDs        =   ['49', '39', '52', '48', '44'];
-                        $planId         =   $planIDs[$planSelect-1];
-                        $createData     =   $this->SmeplugData(4, $planId, $phoneNo);
+                        $planIDs        =   ['airtel_1gb_30days:cg:nil', 'airtel_2gb_30days:cg:nil', 'airtel_5gb_30days:cg:nil', 'airtel_10gb_30days:cg:nil', 'airtel_20gb_30days:cg:nil'];
+                        $planId         =   $planIDs[$planSelect - 1];
+                        $reqstID        =   date('YmdHi') . rand(99, 9999999);
+                        $getCredentials =   $this->SwitchServer('Smeplug');;
+                        $createData     =   $this->SimserverData(3, $getCredentials->access_token, $planId, $phoneNo, $reqstID);
 
-                        if( $createData && $createData->status == true){
+                        if ($createData) {
 
-                            Log::debug(['Error Received' => $createData]);
                             // Update wallet .......................................................................................................
 
                             $new_bal_process = $balance - $planPrice;
-                            $walletDetails = [ 'Account_Balance' => $new_bal_process ];
+                            $walletDetails = ['Account_Balance' => $new_bal_process];
                             $this->userServices->update($this->UserId, $walletDetails);
 
                             // .....................................................................................................................
 
-                            $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
+                            Log::debug(['Success Data' => $createData]);
 
-                            if($savedHistory) {
-
-                                $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
-
-                            } else {
-
-                                $response   =   "END Operation failed, try later";
-                            }
-
+                            $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
                         } else {
                             Log::debug(['Error Received' => $createData]);
 
                             $response   =   "END Error occured, try later";
                         }
-
                     }
+                }
+            } else {
 
+                $response   =   "END Invalid PIN";
+            }
+        }
+
+        // Process 9MOBILE Data
+        elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '3') {
+
+            $networks       =   $inputArray[1];
+            $planSelect     =   (int)$inputArray[2];
+            $phoneNo        =   $inputArray[3];
+            $pin            =   $inputArray[4];
+            $prices         =   [900, 1080, 1350, 1800, 3600];
+            $pVals          =   [1.5, 2, 3, 4.5, 11];
+            $pCodes         =   ['167', '479', '587', '731', '109'];
+            $planCode       =   $pCodes[$planSelect - 1];
+            $planVal        =   $pVals[$planSelect - 1];
+            $planPrice      =   $prices[$planSelect - 1];
+            $balance        =   $this->walletBalance($this->UserId);
+
+
+            if ($this->userServices->checkPin($this->UserId, $pin) == true) {
+
+                if ($balance < $planPrice) {
+
+                    $response   =   "END Insufficient fund, try later ";
                 } else {
 
-                    $response   =   "END Invalid PIN";
-                }
+                    $planIDs        =   ['9MOB1000', '9MOB2000', '9MOB3000', '9MOB34500', '9MOB4000'];
+                    $planId         =   $planIDs[$planSelect - 1];
+                    $createData     =   $this->SmeplugData(3, $planId, $phoneNo);
 
+                    if ($createData && $createData->status == true) {
+
+                        Log::debug(['Error Received' => $createData]);
+                        // Update wallet .......................................................................................................
+
+                        $new_bal_process = $balance - $planPrice;
+                        $walletDetails = ['Account_Balance' => $new_bal_process];
+                        $this->userServices->update($this->UserId, $walletDetails);
+
+                        // .....................................................................................................................
+
+                        $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
+
+                        if ($savedHistory) {
+
+                            $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
+                        } else {
+
+                            $response   =   "END Operation failed, try later";
+                        }
+                    } else {
+                        Log::debug(['Error Received' => $createData]);
+
+                        $response   =   "END Error occured, try later";
+                    }
+                }
+            } else {
+
+                $response   =   "END Invalid PIN";
             }
+        }
+
+        // Process GLO Data
+        elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '4') {
+
+            $networks       =   $inputArray[1];
+            $planSelect     =   (int)$inputArray[2];
+            $phoneNo        =   $inputArray[3];
+            $pin            =   $inputArray[4];
+            $prices         =   [475, 950, 1425, 1900, 2375];
+            $pVals          =   [1, 2.3, 3.7, 5.2, 7];
+            $pCodes         =   ['ussd_glo_1gb', 'ussd_glo_2.3gb', 'ussd_glo_3.7gb', 'ussd_glo_5.2gb', 'ussd_glo_7gb'];
+            $planCode       =   $pCodes[$planSelect - 1];
+            $planVal        =   $pVals[$planSelect - 1];
+            $planPrice      =   $prices[$planSelect - 1];
+            $balance        =   $this->walletBalance($this->UserId);
+
+
+            if ($this->userServices->checkPin($this->UserId, $pin) == true) {
+
+                if ($balance < $planPrice) {
+
+                    $response   =   "END Insufficient fund, try later ";
+                } else {
+
+                    $planIDs        =   ['49', '39', '52', '48', '44'];
+                    $planId         =   $planIDs[$planSelect - 1];
+                    $createData     =   $this->SmeplugData(4, $planId, $phoneNo);
+
+                    if ($createData && $createData->status == true) {
+
+                        Log::debug(['Error Received' => $createData]);
+                        // Update wallet .......................................................................................................
+
+                        $new_bal_process = $balance - $planPrice;
+                        $walletDetails = ['Account_Balance' => $new_bal_process];
+                        $this->userServices->update($this->UserId, $walletDetails);
+
+                        // .....................................................................................................................
+
+                        $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
+
+                        if ($savedHistory) {
+
+                            $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
+                        } else {
+
+                            $response   =   "END Operation failed, try later";
+                        }
+                    } else {
+                        Log::debug(['Error Received' => $createData]);
+
+                        $response   =   "END Error occured, try later";
+                    }
+                }
+            } else {
+
+                $response   =   "END Invalid PIN";
+            }
+        }
 
         // ................................................
         // ...............................................................
@@ -470,176 +429,159 @@ class USSDService
 
 
 
-            elseif ($arrayLength === 2 && $inputArray[0] === '3' && $inputArray[1] === '1') {
-                // Enter Amount for others
-                $response = $this->enterAmount();
+        elseif ($arrayLength === 2 && $inputArray[0] === '3' && $inputArray[1] === '1') {
+            // Enter Amount for others
+            $response = $this->enterAmount();
+        } elseif ($arrayLength === 3 && $inputArray[0] === '3' && $inputArray[1] === '1') {
+            // Save Phone Number in Session and Request Network Selection
 
-            } elseif ($arrayLength === 3 && $inputArray[0] === '3' && $inputArray[1] === '1') {
-                // Save Phone Number in Session and Request Network Selection
+            $response = $this->savePhoneNumber($phoneNumber);
+        } elseif ($arrayLength === 4 && $inputArray[0] === '3' && $inputArray[1] === '1') {
 
-                $response = $this->savePhoneNumber($phoneNumber);
+            $response   =   $this->inputPIN();
+        } elseif ($arrayLength === 5 && $inputArray[0] === '3' && $inputArray[1] === '1') {
+            // Process Airtime Purchase
+            $networkSelection   =   (int)$inputArray[3];
+            $newamount          =   (int)$inputArray[2];
+            $mobileNumber       =   $phoneNumber;
+            $pin                =   $inputArray[4];
+            $balance            =   $this->walletBalance($this->UserId);
 
-            } elseif ($arrayLength === 4 && $inputArray[0] === '3' && $inputArray[1] === '1') {
+            // Check if the "amount" and "phone_number" are set in the session
+            if ($newamount === null || $mobileNumber === null) {
 
-                $response   =   $this->inputPIN() ;
+                $response = "END Invalid input. Please start the airtime purchase process again.";
+            } else {
 
-            } elseif ($arrayLength === 5 && $inputArray[0] === '3' && $inputArray[1] === '1') {
-                // Process Airtime Purchase
-                $networkSelection   =   (int)$inputArray[3];
-                $newamount          =   (int)$inputArray[2] ;
-                $mobileNumber       =   $phoneNumber ;
-                $pin                =   $inputArray[4];
-                $balance            =   $this->walletBalance($this->UserId);
+                if ($this->userServices->checkPin($this->UserId, $pin) == true) {
 
-                // Check if the "amount" and "phone_number" are set in the session
-                if ($newamount === null || $mobileNumber === null) {
+                    if ($balance < $newamount) {
 
-                    $response = "END Invalid input. Please start the airtime purchase process again.";
-
-                } else {
-
-                    if( $this->userServices->checkPin($this->UserId, $pin) == true){
-
-                        if( $balance < $newamount ) {
-
-                            $response   =   "END Insufficient fund, try later ";
-
-                        } else {
-                            $networkSelection = (int)$inputArray[3];
-
-                            // Reset the session data after processing
-                            unset($_SESSION['amount']);
-                            unset($_SESSION['phone_number']);
-
-                            // Convert network selection to the actual network name
-                            $networks = ['mtn', 'glo', 'airtel', 'etisalat'];
-                            $network = isset($networks[$networkSelection - 1]) ? $networks[$networkSelection - 1] : 'Unknown Network';
-
-                            // Get Airtime Percentage ------------------------------------------------------------------------->
-                            $percVal        =   2 / 100;
-                            $amount2Purchase=   $newamount - ($percVal * $newamount);
-                            // Get Wallet Details ----------------------------------------------------------------------------->
-                            $req_bal_process = $this->walletBalance($this->UserId);
-
-                            if($req_bal_process < $amount2Purchase){
-                                $response   =   'END Insufficient fund';
-                            }else{
-
-                                $response   =   $this->VTPassAirtimePurchase($requestID, $network, $newamount, $mobileNumber, $amount2Purchase, $customer_reference);
-                                $response   =   "END Thank you for purchasing $newamount airtime for $mobileNumber on $network network.";
-                            }
-                        }
+                        $response   =   "END Insufficient fund, try later ";
                     } else {
+                        $networkSelection = (int)$inputArray[3];
 
-                        $response   =   "END Invalid PIN";
+                        // Reset the session data after processing
+                        unset($_SESSION['amount']);
+                        unset($_SESSION['phone_number']);
 
-                    }
+                        // Convert network selection to the actual network name
+                        $networks = ['mtn', 'glo', 'airtel', 'etisalat'];
+                        $network = isset($networks[$networkSelection - 1]) ? $networks[$networkSelection - 1] : 'Unknown Network';
 
-                }
-            }
+                        // Get Airtime Percentage ------------------------------------------------------------------------->
+                        $percVal        =   2 / 100;
+                        $amount2Purchase =   $newamount - ($percVal * $newamount);
+                        // Get Wallet Details ----------------------------------------------------------------------------->
+                        $req_bal_process = $this->walletBalance($this->UserId);
 
-
-            // ----------------------------------------------- AIRTIME PROCESSING FOR OTHERS ---------------------------------------->
-
-            elseif ($arrayLength === 2 && $inputArray[0] === '3' && $inputArray[1] === '2') {
-                // Enter Amount for self
-                $response = $this->enterAmount();
-
-            } elseif ($arrayLength === 3 && $inputArray[0] === '3' && $inputArray[1] === '2') {
-                // Save Amount in Session
-                $response = $this->saveAmount((int)$inputArray[2]);
-
-            } elseif ($arrayLength === 4 && $inputArray[0] === '3' && $inputArray[1] === '2') {
-                // Save Phone Number in Session and Request Network Selection
-
-                $response = $this->savePhoneNumber($inputArray[3]);
-
-            } elseif ($arrayLength === 5 && $inputArray[0] === '3' && $inputArray[1] === '2') {
-
-                $response   =   $this->inputPIN();
-
-            } elseif ($arrayLength === 6 && $inputArray[0] === '3' && $inputArray[1] === '2') {
-                // Process Airtime Purchase
-                $networkSelection   =   (int)$inputArray[4];
-                $newamount          =   (int)$inputArray[2] ;
-                $pin                =   $inputArray[5];
-                $mobileNumber       =   ($inputArray[3]) ;
-                $balance            =   $this->walletBalance($this->UserId);
-
-                // Check if the "amount" and "phone_number" are set in the session
-                if ($newamount === null || $mobileNumber === null) {
-
-                    $response = "END Invalid input. Please start the airtime purchase process again.";
-
-                } else {
-
-                    if( $this->userServices->checkPin($this->UserId, $pin) == true){
-
-                        if( $balance < $newamount ) {
-
-                            $response   =   "END Insufficient fund, try later ";
-
+                        if ($req_bal_process < $amount2Purchase) {
+                            $response   =   'END Insufficient fund';
                         } else {
 
-                            // Reset the session data after processing
-                            unset($_SESSION['amount']);
-                            unset($_SESSION['phone_number']);
-
-                            // Convert network selection to the actual network name
-                            $networks = ['mtn', 'glo', 'airtel', 'etisalat'];
-                            $network = isset($networks[$networkSelection - 1]) ? $networks[$networkSelection - 1] : 'Unknown Network';
-
-                            // Get Airtime Percentage ------------------------------------------------------------------------->
-                            $percVal        =   2 / 100;
-                            $amount2Purchase=   $newamount - ($percVal * $newamount);
-                            // Get Wallet Details ----------------------------------------------------------------------------->
-                            $req_bal_process = $this->walletBalance($this->UserId);
-
-                            if($req_bal_process < $amount2Purchase){
-                                $response   =   'END Insufficient fund';
-                            }else{
-
-                                $response   =   $this->VTPassAirtimePurchase($requestID, $network, $newamount, $mobileNumber, $amount2Purchase, $customer_reference);
-                                $response   =   "END Thank you for purchasing $newamount airtime for $mobileNumber on $network network.";
-                            }
+                            $response   =   $this->VTPassAirtimePurchase($requestID, $network, $newamount, $mobileNumber, $amount2Purchase, $customer_reference, $req_bal_process, $req_bal_process + $amount2Purchase);
+                            $response   =   "END Thank you for purchasing $newamount airtime for $mobileNumber on $network network.";
                         }
-                    } else {
-                        $response   =   "END Invalid PIN";
                     }
+                } else {
+
+                    $response   =   "END Invalid PIN";
                 }
             }
+        }
 
 
-            // ....................
-            // ...........................
-            // ..................................
-            // ............................................
-            // ................................................................
-            // ..............................................................................
+        // ----------------------------------------------- AIRTIME PROCESSING FOR OTHERS ---------------------------------------->
 
-            // ---------------------------------------------- AIRTIME PROCESSING ------------------------------------------------------->
+        elseif ($arrayLength === 2 && $inputArray[0] === '3' && $inputArray[1] === '2') {
+            // Enter Amount for self
+            $response = $this->enterAmount();
+        } elseif ($arrayLength === 3 && $inputArray[0] === '3' && $inputArray[1] === '2') {
+            // Save Amount in Session
+            $response = $this->saveAmount((int)$inputArray[2]);
+        } elseif ($arrayLength === 4 && $inputArray[0] === '3' && $inputArray[1] === '2') {
+            // Save Phone Number in Session and Request Network Selection
+
+            $response = $this->savePhoneNumber($inputArray[3]);
+        } elseif ($arrayLength === 5 && $inputArray[0] === '3' && $inputArray[1] === '2') {
+
+            $response   =   $this->inputPIN();
+        } elseif ($arrayLength === 6 && $inputArray[0] === '3' && $inputArray[1] === '2') {
+            // Process Airtime Purchase
+            $networkSelection   =   (int)$inputArray[4];
+            $newamount          =   (int)$inputArray[2];
+            $pin                =   $inputArray[5];
+            $mobileNumber       =   ($inputArray[3]);
+            $balance            =   $this->walletBalance($this->UserId);
+
+            // Check if the "amount" and "phone_number" are set in the session
+            if ($newamount === null || $mobileNumber === null) {
+
+                $response = "END Invalid input. Please start the airtime purchase process again.";
+            } else {
+
+                if ($this->userServices->checkPin($this->UserId, $pin) == true) {
+
+                    if ($balance < $newamount) {
+
+                        $response   =   "END Insufficient fund, try later ";
+                    } else {
+
+                        // Reset the session data after processing
+                        unset($_SESSION['amount']);
+                        unset($_SESSION['phone_number']);
+
+                        // Convert network selection to the actual network name
+                        $networks = ['mtn', 'glo', 'airtel', 'etisalat'];
+                        $network = isset($networks[$networkSelection - 1]) ? $networks[$networkSelection - 1] : 'Unknown Network';
+
+                        // Get Airtime Percentage ------------------------------------------------------------------------->
+                        $percVal        =   2 / 100;
+                        $amount2Purchase =   $newamount - ($percVal * $newamount);
+                        // Get Wallet Details ----------------------------------------------------------------------------->
+                        $req_bal_process = $this->walletBalance($this->UserId);
+
+                        if ($req_bal_process < $amount2Purchase) {
+                            $response   =   'END Insufficient fund';
+                        } else {
+
+                            $response   =   $this->VTPassAirtimePurchase($requestID, $network, $newamount, $mobileNumber, $amount2Purchase, $customer_reference, $req_bal_process, $req_bal_process + $amount2Purchase);
+                            $response   =   "END Thank you for purchasing $newamount airtime for $mobileNumber on $network network.";
+                        }
+                    }
+                } else {
+                    $response   =   "END Invalid PIN";
+                }
+            }
+        }
+
+
+        // ....................
+        // ...........................
+        // ..................................
+        // ............................................
+        // ................................................................
+        // ..............................................................................
+
+        // ---------------------------------------------- AIRTIME PROCESSING ------------------------------------------------------->
 
         // Buy Cable Plan
-        elseif( $text == "4")
-        {
+        elseif ($text == "4") {
             $response    =   "END Dear $this->Name, This Service Is Coming Soon ... ";
         }
 
         // Pay Your Bill
-        elseif( $text == "5")
-        {
+        elseif ($text == "5") {
             $response    =   "END Dear $this->Name, This Service Is Coming Soon ... ";
         }
 
         // Register An Account
-        elseif( $text == "6")
-        {
+        elseif ($text == "6") {
             $response    =   "END Dear $this->Name, This Service Is Coming Soon ... ";
         }
 
         // History Menu
-        elseif( $text == "7")
-        {
+        elseif ($text == "7") {
             $response   =   $this->LatestHistory();
         }
 
@@ -652,7 +594,6 @@ class USSDService
         // Send the response to the USSD gateway
         header('Content-type: text/plain');
         echo $response;
-
     }
     // Public service function ends here ....................................................................
 
@@ -770,7 +711,7 @@ class USSDService
     {
         $DataDetails = [
             'network_id'       => $networkId,
-            'plan_id'          => $smePlugPlanID ,
+            'plan_id'          => $smePlugPlanID,
             'phone'            => $phoneNumber,
         ];
 
@@ -787,7 +728,7 @@ class USSDService
             'product_code'      => $simServersPlanID,
             'amount'            => '50',
             'recipient'         => $phoneNumber,
-            'callback'          => URL('/').'/api/verifySimserverWebhook',
+            'callback'          => URL('/') . '/api/verifySimserverWebhook',
             'user_reference'    => $requestID
 
         ];
@@ -912,7 +853,7 @@ class USSDService
             'phone'             => $phn,
         ];
         $createNigAirt = json_decode($this->airtimeServices->createVtpassAirtime($DataDetails));
-        if($createNigAirt){
+        if ($createNigAirt) {
 
             $AirtimeTransDetail = [
                 'mobile_number' => $createNigAirt->content->transactions->unique_element,
@@ -921,7 +862,7 @@ class USSDService
                 'paid_amount'   => $pamt,
                 'Status'        => 'Processing',
                 'create_date'   => Carbon::now(),
-                'balance_before'=> $bb,
+                'balance_before' => $bb,
                 'balance_after' => $ba,
                 'Ported_number' => 0,
                 'medium'        => 'USSD',
@@ -933,8 +874,7 @@ class USSDService
 
             $this->historyServices->createAirtimeHistory($AirtimeTransDetail);
             $response = "END Thank you for purchasing $amt airtime for $phn on $ntw network.";
-        }
-        else{
+        } else {
 
             $response   =   "Error Occured, try later";
         }
@@ -956,17 +896,14 @@ class USSDService
 
             $latestHistory = collect([$historyD, $historyA, $historyB, $historyC])->filter()->sortByDesc('create_date')->first();
 
-            if($latestHistory)
-            {
+            if ($latestHistory) {
                 $transPhn   =   $latestHistory->phone_number ?? $latestHistory->mobile_number ?? $latestHistory->Customer_Phone ?? $latestHistory->smart_card_number;
                 $transDvc   =   $latestHistory->deviceNo ?? 'N/A';
                 $transOpe   =   $latestHistory->network ?? 'N/A';
                 $transPrc   =   $latestHistory->selling_price ?? 'N/A';
                 $transPhr   =   $latestHistory->purchase ?? 'N/A';
                 $response   = "END Your Latest Transaction Is : $transPhr | ₦ $transPrc | $transOpe | $transDvc $transPhn";
-            }
-            else
-            {
+            } else {
                 $response   =   "END No Transaction Found !!!";
             }
 
@@ -974,7 +911,6 @@ class USSDService
         } catch (\Throwable $th) {
             $response   =   "END Something went wrong, try later !!!";
             return $response;
-
         }
     }
 
@@ -982,7 +918,7 @@ class USSDService
     private function walletBalance($uid)
     {
         // Get Wallet Details ----------------------------------------------------------------------------->
-        $req_Account_process = $this->userServices->account($uid);
+        $req_Account_process = $this->userServices->wallet($uid);
         return $req_Account_process;
     }
 
