@@ -27,7 +27,7 @@ class UssdController extends Controller
         $text       = $request->text;
         $input      = $request->input;
         $requestID  = date('YmdHi') . rand(99, 9999999);
-        $mobile     = '07035743427';//$request->phoneNumber;
+        $mobile     = $request->phoneNumber;
         $phoneNumber= str_replace("+234", "0", $mobile);
         $customerReference = rand(99, 999999999999);
 
