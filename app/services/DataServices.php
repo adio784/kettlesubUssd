@@ -30,6 +30,15 @@ class DataServices
         return $response->data->api_key;
     }
 
+    public static function createCheapestData(array $DataDetails){
+        $response = Http::withBasicAuth('Tope25', 'Damola24..')
+                    ->post(
+                        'https://cheapestsub.com/account/api/v1/buyairtelcg',
+                        $DataDetails
+                    );
+        return $response;
+    }
+
     // Integrating SmePlug Data
     public function createSmePlugData(array $DataDetails)
     {

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 class USSDService
 {
+    private $SimserAccesstoken;
     private $customerReference;
     private $simServerServices;
     private $dataServices;
@@ -38,6 +39,7 @@ class USSDService
         $this->userServices = $userServices;
         $this->airtimeServices = $airtimeServices;
         $this->customerReference = rand(99, 999999999999);
+        $this->SimserAccesstoken = "y7vyy268rjxxxxxxw6bsn4slfnolxetcxzkg5m6id";
     }
 
     // Public service function starts here ....................................................................
@@ -114,18 +116,17 @@ class USSDService
 
             $response   =   $this->inputPIN();
         }
+
         // Process MTN Data
         elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '1') {
 
-            $activeServer   =   $this->SwitchServer(1);
+            $activeServer   =   $this->SwitchServer('MTN');
             $networks       =   $inputArray[1];
             $planSelect     =   (int)$inputArray[2];
             $phoneNo        =   $inputArray[3];
             $pin            =   $inputArray[4];
-            $prices         =   [250, 500, 750, 1250, 2500];
+            $prices         =   [285, 570, 855, 1425, 2850];
             $pVals          =   [1, 2, 3, 5, 10];
-            $pCodes         =   ['950', '215', '516', '439', '14525'];
-            $planCode       =   $pCodes[$planSelect - 1];
             $planVal        =   $pVals[$planSelect - 1];
             $planPrice      =   $prices[$planSelect - 1];
             $balance        =   $this->walletBalance($this->UserId);
@@ -138,15 +139,14 @@ class USSDService
                     $response   =   "END Insufficient fund, try later ";
                 } else {
 
-                    if ($activeServer == 'Smeplug') {
+                    if ($activeServer == 'SMEPLUG') {
 
-                        $planIDs        =   ['2', '3', '4', '5', '7'];
+                        $planIDs        =   ['2', '3', '4', '5', '109'];
                         $planId         =   $planIDs[$planSelect - 1];
-                        $createData     =   $this->SmeplugData(1, 1, $phoneNo);
+                        $createData     =   $this->SmeplugData(1, $planId, $phoneNo);
 
                         if ($createData && $createData->status == true) {
-
-                            Log::debug(['Error Received' => $createData]);
+                            Log::debug(['Data Received' => $createData]);
                             // Update wallet .......................................................................................................
 
                             $new_bal_process = $balance - $planPrice;
@@ -154,19 +154,22 @@ class USSDService
                             $this->userServices->update($this->UserId, $walletDetails);
 
                             // .....................................................................................................................
+                            $planCodes      =   ['7', '8', '44', '11', '207'];
+                            $planCode       =   $planCodes[$planSelect - 1];
+                            $savedHistory   =   $this->saveData(1, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice);
 
-                            $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'mtn', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
 
                             if ($savedHistory) {
 
                                 $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
                             } else {
 
+                                Log::debug(['Failed to save data' => $createData]);
                                 $response   =   "END Operation failed, try later";
                             }
                         } else {
-                            Log::debug(['Error Received' => $createData]);
 
+                            Log::debug(['Error Received' => $createData]);
                             $response   =   "END Error occured, try later";
                         }
                     } else {
@@ -174,8 +177,7 @@ class USSDService
                         $planIDs        =   ['data_share_1gb:device:USSD_SHARE_FULL', 'data_share_2gb:device:USSD_SHARE_FULL', 'data_share_3gb:device:USSD_SHARE_FULL', 'data_share_5gb:device:USSD_SHARE_FULL', 'data_share_10gb:device:USSD_SHARE_FULL'];
                         $planId         =   $planIDs[$planSelect - 1];
                         $reqstID        =   date('YmdHi') . rand(99, 9999999);
-                        $getCredentials =   $this->SwitchServer('Smeplug');
-                        $createData     =   $this->SimserverData(1, $getCredentials->access_token, $planId, $phoneNo, $reqstID);
+                        $createData     =   $this->SimserverData($planId, $phoneNo, $reqstID);
 
                         if ($createData) {
 
@@ -188,11 +190,24 @@ class USSDService
                             // .....................................................................................................................
 
                             Log::debug(['Success Data' => $createData]);
+                            $planCodes      =   ['7', '8', '44', '11', '207'];
+                            $planCode       =   $planCodes[$planSelect - 1];
+                            $savedHistory   =   $this->saveData(1, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice);
+
+
+                            if ($savedHistory) {
+
+                                $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
+                            } else {
+
+                                Log::debug(['failed to save data' => $savedHistory]);
+                                $response   =   "END Operation failed, try later";
+                            }
 
                             $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
                         } else {
-                            Log::debug(['Error Received' => $createData]);
 
+                            Log::debug(['Error Received' => $createData]);
                             $response   =   "END Error occured, try later";
                         }
                     }
@@ -206,15 +221,13 @@ class USSDService
         // Process AIRTEL Data
         elseif ($arrayLength === 5 && $inputArray[0] === '2' && $inputArray[1] === '2') {
 
-            $activeServer   =   $this->SwitchServer(2);
+            $activeServer   =   $this->SwitchServer('AIRTEL');
             $networks       =   $inputArray[1];
             $planSelect     =   (int)$inputArray[2];
             $phoneNo        =   $inputArray[3];
             $pin            =   $inputArray[4];
-            $prices         =   [350, 700, 1750, 3400, 6800];
-            $pVals          =   [1, 2, 5, 10, 20];
-            $pCodes         =   ['293', '666', '454', '119', '481'];
-            $planCode       =   $pCodes[$planSelect - 1];
+            $prices         =   [160, 320, 640, 1600, 3200];
+            $pVals          =   [500, 1, 2, 5, 10];
             $planVal        =   $pVals[$planSelect - 1];
             $planPrice      =   $prices[$planSelect - 1];
             $balance        =   $this->walletBalance($this->UserId);
@@ -227,63 +240,34 @@ class USSDService
                     $response   =   "END Insufficient fund, try later ";
                 } else {
 
-                    if ($activeServer == 'Smeplug') {
+                    $planIDs        =   ['500MB', '1GB', '2GB', '5GB', '10GB'];
+                    $planId         =   $planIDs[$planSelect - 1];
+                    $createData     =   $this->CheapestData($planId, $phoneNo);
 
-                        $planIDs        =   ['AIR1000', 'AIR2000', 'AIR2500', '5', '7'];
-                        $planId         =   $planIDs[$planSelect - 1];
-                        $createData     =   $this->SmeplugData(2, $planId, $phoneNo);
+                    if ($createData && $createData->status == 'success') {
+                        Log::debug(['Data Received' => $createData]);
+                        // Update wallet .......................................................................................................
 
-                        if ($createData && $createData->status == true) {
+                        $new_bal_process = $balance - $planPrice;
+                        $walletDetails = ['Account_Balance' => $new_bal_process];
+                        $this->userServices->update($this->UserId, $walletDetails);
 
-                            Log::debug(['Error Received' => $createData]);
-                            // Update wallet .......................................................................................................
+                        // .....................................................................................................................
+                        $planCodes      =   ['220', '221', '222', '224', '2311'];
+                        $planCode       =   $planCodes[$planSelect - 1];
+                        $savedHistory   =   $this->saveData(4, $planCode, $phoneNo, $createData->reference, $balance, $new_bal_process, $planPrice);
 
-                            $new_bal_process = $balance - $planPrice;
-                            $walletDetails = ['Account_Balance' => $new_bal_process];
-                            $this->userServices->update($this->UserId, $walletDetails);
-
-                            // .....................................................................................................................
-
-                            $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
-
-                            if ($savedHistory) {
-
-                                $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
-                            } else {
-
-                                $response   =   "END Operation failed, try later";
-                            }
-                        } else {
-                            Log::debug(['Error Received' => $createData]);
-
-                            $response   =   "END Error occured, try later";
-                        }
-                    } else {
-
-                        $planIDs        =   ['airtel_1gb_30days:cg:nil', 'airtel_2gb_30days:cg:nil', 'airtel_5gb_30days:cg:nil', 'airtel_10gb_30days:cg:nil', 'airtel_20gb_30days:cg:nil'];
-                        $planId         =   $planIDs[$planSelect - 1];
-                        $reqstID        =   date('YmdHi') . rand(99, 9999999);
-                        $getCredentials =   $this->SwitchServer('Smeplug');;
-                        $createData     =   $this->SimserverData(3, $getCredentials->access_token, $planId, $phoneNo, $reqstID);
-
-                        if ($createData) {
-
-                            // Update wallet .......................................................................................................
-
-                            $new_bal_process = $balance - $planPrice;
-                            $walletDetails = ['Account_Balance' => $new_bal_process];
-                            $this->userServices->update($this->UserId, $walletDetails);
-
-                            // .....................................................................................................................
-
-                            Log::debug(['Success Data' => $createData]);
+                        if ($savedHistory) {
 
                             $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
                         } else {
-                            Log::debug(['Error Received' => $createData]);
-
-                            $response   =   "END Error occured, try later";
+                            Log::debug(['Failed to saveData' => $savedHistory]);
+                            $response   =   "END Operation failed, try later";
                         }
+                    } else {
+
+                        Log::debug(['Error Received' => $createData]);
+                        $response   =   "END Error occured, try later";
                     }
                 }
             } else {
@@ -321,7 +305,7 @@ class USSDService
 
                     if ($createData && $createData->status == true) {
 
-                        Log::debug(['Error Received' => $createData]);
+                        Log::debug(['Data Received' => $createData]);
                         // Update wallet .......................................................................................................
 
                         $new_bal_process = $balance - $planPrice;
@@ -329,19 +313,20 @@ class USSDService
                         $this->userServices->update($this->UserId, $walletDetails);
 
                         // .....................................................................................................................
-
-                        $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
+                        $planCodes      =   ['183', '184', '185', '186', '187'];
+                        $planCode       =   $planCodes[$planSelect - 1];
+                        $savedHistory   =   $this->saveData(3, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice);
 
                         if ($savedHistory) {
 
                             $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
                         } else {
-
+                            Log::debug(['Failed to save data' => $createData]);
                             $response   =   "END Operation failed, try later";
                         }
                     } else {
-                        Log::debug(['Error Received' => $createData]);
 
+                        Log::debug(['Error Received' => $createData]);
                         $response   =   "END Error occured, try later";
                     }
                 }
@@ -358,10 +343,8 @@ class USSDService
             $planSelect     =   (int)$inputArray[2];
             $phoneNo        =   $inputArray[3];
             $pin            =   $inputArray[4];
-            $prices         =   [475, 950, 1425, 1900, 2375];
-            $pVals          =   [1, 2.3, 3.7, 5.2, 7];
-            $pCodes         =   ['ussd_glo_1gb', 'ussd_glo_2.3gb', 'ussd_glo_3.7gb', 'ussd_glo_5.2gb', 'ussd_glo_7gb'];
-            $planCode       =   $pCodes[$planSelect - 1];
+            $prices         =   [950, 1425, 1900, 2375, 2850];
+            $pVals          =   [3.9, 4.1, 5.8, 7.7, 10];
             $planVal        =   $pVals[$planSelect - 1];
             $planPrice      =   $prices[$planSelect - 1];
             $balance        =   $this->walletBalance($this->UserId);
@@ -376,11 +359,11 @@ class USSDService
 
                     $planIDs        =   ['49', '39', '52', '48', '44'];
                     $planId         =   $planIDs[$planSelect - 1];
-                    $createData     =   $this->SmeplugData(4, $planId, $phoneNo);
+                    $createData     =   $this->SmeplugData(2, $planId, $phoneNo);
 
                     if ($createData && $createData->status == true) {
 
-                        Log::debug(['Error Received' => $createData]);
+                        Log::debug(['Data Received' => $createData]);
                         // Update wallet .......................................................................................................
 
                         $new_bal_process = $balance - $planPrice;
@@ -388,19 +371,22 @@ class USSDService
                         $this->userServices->update($this->UserId, $walletDetails);
 
                         // .....................................................................................................................
+                        $planCodes      =   ['194', '195', '196', '197', '198'];
+                        $planCode       =   $planCodes[$planSelect - 1];
+                        $savedHistory   =   $this->saveData(2, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice);
 
-                        $savedHistory    =   $this->saveData($this->UserId, 'Smeplug', 'airtel', $planVal, $planCode, $phoneNo, $createData->data->reference, $balance, $new_bal_process, $planPrice, $createData->data->msg);
 
                         if ($savedHistory) {
 
                             $response    =  "END Successfully purchase $planVal Gb data to: $phoneNo ";
                         } else {
 
+                            Log::debug(['Failed to save data' => $createData]);
                             $response   =   "END Operation failed, try later";
                         }
                     } else {
-                        Log::debug(['Error Received' => $createData]);
 
+                        Log::debug(['Error Received' => $createData]);
                         $response   =   "END Error occured, try later";
                     }
                 }
@@ -421,7 +407,7 @@ class USSDService
             $response   = $this->BuyAirtime();
         }
 
-        // ----------------------------------------------- AIRTIME PROCESSING FOR ----------------------------------------------------------->
+        // ----------------------------------------------- AIRTIME PROCESSING FOR SELF ----------------------------------------------------------->
         // .......................................................................
         // ....................................................
         // ...................................
@@ -470,16 +456,20 @@ class USSDService
                         $network = isset($networks[$networkSelection - 1]) ? $networks[$networkSelection - 1] : 'Unknown Network';
 
                         // Get Airtime Percentage ------------------------------------------------------------------------->
-                        $percVal        =   2 / 100;
+                        $pervalue       =   $this->getAirtimePercentage($network);
+                        $percVal        =   $pervalue / 100;
                         $amount2Purchase =   $newamount - ($percVal * $newamount);
                         // Get Wallet Details ----------------------------------------------------------------------------->
                         $req_bal_process = $this->walletBalance($this->UserId);
+                        $new_balance     = $req_bal_process - $amount2Purchase;
+
 
                         if ($req_bal_process < $amount2Purchase) {
                             $response   =   'END Insufficient fund';
                         } else {
 
                             $response   =   $this->VTPassAirtimePurchase($requestID, $network, $newamount, $mobileNumber, $amount2Purchase, $customer_reference, $req_bal_process, $req_bal_process + $amount2Purchase);
+                            $response   =   $this->updateWallet($this->UserId, $new_balance);
                             $response   =   "END Thank you for purchasing $newamount airtime for $mobileNumber on $network network.";
                         }
                     }
@@ -540,12 +530,14 @@ class USSDService
                         $amount2Purchase =   $newamount - ($percVal * $newamount);
                         // Get Wallet Details ----------------------------------------------------------------------------->
                         $req_bal_process = $this->walletBalance($this->UserId);
+                        $new_balance     = $req_bal_process - $amount2Purchase;
 
                         if ($req_bal_process < $amount2Purchase) {
                             $response   =   'END Insufficient fund';
                         } else {
 
                             $response   =   $this->VTPassAirtimePurchase($requestID, $network, $newamount, $mobileNumber, $amount2Purchase, $customer_reference, $req_bal_process, $req_bal_process + $amount2Purchase);
+                            $response   =   $this->updateWallet($this->UserId, $new_balance);
                             $response   =   "END Thank you for purchasing $newamount airtime for $mobileNumber on $network network.";
                         }
                     }
@@ -604,8 +596,8 @@ class USSDService
         $response    .=   "1. Account Balance \n";
         $response    .=   "2. Buy Data \n";
         $response    .=   "3. Buy Airtime \n";
-        $response    .=   "4. Buy Cable \n";
-        $response    .=   "5. Pay Your Bill \n";
+        // $response    .=   "4. Buy Cable \n";
+        // $response    .=   "5. Pay Your Bill \n";
         $response    .=   "6. Register New Account \n";
         $response    .=   "7. Latest Transaction \n";
 
@@ -630,7 +622,7 @@ class USSDService
     private function SwitchServer($networkId)
     {
         $simServer = $this->simServerServices->getActiveSimServers($networkId);
-        return $simServer->sim_server;
+        return $simServer->data_vending_medium;
     }
 
     // Function Airtime SubMenu
@@ -660,11 +652,11 @@ class USSDService
     {
         // Buy MTN Data submenu
         $response = "CON MTN Data:\n";
-        $response .= "1. 1Gb/₦250/30days \n";
-        $response .= "2. 2Gb/₦500/30days \n";
-        $response .= "3. 3Gb/₦750/30days \n";
-        $response .= "4. 5Gb/₦1,250/30days \n";
-        $response .= "5. 10Gb/₦2500/30days";
+        $response .= "1. 1Gb/₦285/30days \n";
+        $response .= "2. 2Gb/₦570/30days \n";
+        $response .= "3. 3Gb/₦855/30days \n";
+        $response .= "4. 5Gb/₦1,425/30days \n";
+        $response .= "5. 10Gb/₦2,850/30days";
         return $response;
     }
 
@@ -673,10 +665,11 @@ class USSDService
     {
         // Buy Airtel Data submenu
         $response = "CON Airtel Data:\n";
-        $response .= "1. 1Gb/₦350/30days \n";
-        $response .= "2. 2Gb/₦700/30days \n";
-        $response .= "3. 5Gb/₦1,750/30days \n";
-        $response .= "4. 10Gb/₦3,400/30days";
+        $response .= "1. 500MB/₦160/30days \n";
+        $response .= "2. 1Gb/₦320/30days \n";
+        $response .= "3. 2Gb/₦640/30days \n";
+        $response .= "4. 5Gb/₦1,600/30days \n";
+        $response .= "5. 10Gb/₦3200/30days";
         return $response;
     }
 
@@ -698,11 +691,11 @@ class USSDService
     {
         // Buy Glo Data submenu
         $response = "CON Glo Data:\n";
-        $response .= "1. 1Gb/₦475/14days \n";
-        $response .= "2. 2.3Gb/₦950/30days \n";
-        $response .= "3. 3.7Gb/₦1,425/30days \n";
-        $response .= "4. 5.2Gb/₦1,900/30days \n";
-        $response .= "5. 7Gb/₦2375/30days";
+        $response .= "1. 3.9Gb/₦950/30days \n";
+        $response .= "2. 4.1Gb/₦1,425/30days \n";
+        $response .= "3. 5.8Gb/₦1,900/30days \n";
+        $response .= "4. 7.7Gb/₦2,375/30days \n";
+        $response .= "5. 10Gb/₦2,850/30days";
         return $response;
     }
 
@@ -720,17 +713,28 @@ class USSDService
         return $createSmeplugData;
     }
 
-    private function SimserverData($networkId, $apiKey, $simServersPlanID, $phoneNumber, $requestID)
+    private function CheapestData($smePlugPlanID, $phoneNumber)
+    {
+        $DataDetails = [
+            'bundle'    => $smePlugPlanID,
+            'mobile'    => $phoneNumber,
+        ];
+
+        $createCheapestData = json_decode($this->dataServices->createCheapestData($DataDetails));
+
+        return $createCheapestData;
+    }
+
+    private function SimserverData($simServersPlanID, $phoneNumber, $requestID)
     {
         $DataDetails = [
             'process'           => 'buy',
-            'api_key'           => $apiKey, //$getCredentials->access_token,
+            'api_key'           => $this->SimserAccesstoken,
             'product_code'      => $simServersPlanID,
             'amount'            => '50',
             'recipient'         => $phoneNumber,
             'callback'          => URL('/') . '/api/verifySimserverWebhook',
             'user_reference'    => $requestID
-
         ];
 
         $createSmeplugData = json_decode($this->dataServices->createSimserversData($DataDetails));
@@ -739,14 +743,14 @@ class USSDService
     }
 
     // Store Data in History Table
-    private function saveData($uid, $apiMd, $nwt, $planValue, $product_code, $phoneNumber, $customer_ref, $bb, $ba, $data_price, $msg)
+    private function saveData($nwt, $plan_id, $phoneNumber, $customer_ref, $bb, $ba, $data_price)
     {
         $commission = 0.0;
         $HistoryDetails = [
-            'data_type' => $planValue,
+            'data_type' => '',
             'mobile_number' => $phoneNumber,
             'Status' => 'Processing',
-            'medium' => $apiMd,
+            'medium' => 'USSD',
             'create_date' => Carbon::now(),
             'balance_before' => $bb,
             'balance_after' => $ba,
@@ -755,9 +759,9 @@ class USSDService
             'ident' => $customer_ref,
             'refund' => 0,
             'network_id' => $nwt,
-            'plan_id' => $product_code,
-            'user_id' => $uid,
-            'api_response' => $msg,
+            'plan_id' => $plan_id,
+            'user_id' => $this->UserId,
+            'api_response' => '',
         ];
 
         $output =   $this->historyServices->createDataHistory($HistoryDetails);
@@ -853,10 +857,11 @@ class USSDService
             'phone'             => $phn,
         ];
         $createNigAirt = json_decode($this->airtimeServices->createVtpassAirtime($DataDetails));
+        Log::info('createNigAirt', ['createNigAirt' => $createNigAirt]);
         if ($createNigAirt) {
 
             $AirtimeTransDetail = [
-                'mobile_number' => $createNigAirt->content->transactions->unique_element,
+                'mobile_number' => $phn,
                 'airtime_type'  => $createNigAirt->content->transactions->product_name,
                 'amount'        => $amt,
                 'paid_amount'   => $pamt,
@@ -920,6 +925,18 @@ class USSDService
         // Get Wallet Details ----------------------------------------------------------------------------->
         $req_Account_process = $this->userServices->wallet($uid);
         return $req_Account_process;
+    }
+
+    private function updateWallet($uid, $bal)
+    {
+        $request_user = $this->userServices->update($uid, ['Account_Balance' => $bal]);
+        return $request_user;
+    }
+
+    private function getAirtimePercentage($ntk)
+    {
+        $get_perc = $this->airtimeServices->getPercentage($ntk);
+        return $get_perc;
     }
 
     // CREATE PIN

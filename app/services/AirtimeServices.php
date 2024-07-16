@@ -1,6 +1,7 @@
 <?php
 namespace App\services;
 
+use App\Models\VtuappTopuppercentage;
 use Illuminate\Support\Facades\Http;
 
 class AirtimeServices
@@ -9,8 +10,8 @@ class AirtimeServices
     public function createVtpassAirtime(array $AirtimeDetails)
     {
         $response = Http::withBasicAuth(
-            'moyofolatimothy@gmail.com',
-            'Damola24..'
+            'timothydamola@gmail.com',
+            '24..Moyofola'
             )->post(
                 'https://api-service.vtpass.com/api/pay',
                 $AirtimeDetails
@@ -21,6 +22,12 @@ class AirtimeServices
         //     'Content-Type' => 'application/json'
         // ])->post('https://sandbox.vtpass.com/api/pay', $AirtimeDetails);
         return $response;
+    }
+
+    public function getPercentage($networkId)
+    {
+        $perc = VtuappTopuppercentage::where('network_id', $networkId)->first();
+        return $perc->percent;
     }
 
 }

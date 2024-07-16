@@ -7,3 +7,5 @@ dns1.namecheaphosting.com and dns2.namecheaphosting.com.
 kettlesubUssd
 
 https://ussd.kettlesub.com/api/ussd_response
+
+https://app.kettlesub.com/api/ussd_response

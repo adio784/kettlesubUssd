@@ -276,7 +276,7 @@ class ProcessUSSDController extends Controller
 
                             if( $createData && $createData->status == true){
 
-                                Log::debug(['Error Received' => $createData]);
+                                Log::debug(['Data Received' => $createData]);
                                 // Update wallet .......................................................................................................
 
                                 $new_bal_process = $balance - $planPrice;
@@ -371,7 +371,7 @@ class ProcessUSSDController extends Controller
 
                         if( $createData && $createData->status == true){
 
-                            Log::debug(['Error Received' => $createData]);
+                            Log::debug(['Data Received' => $createData]);
                             // Update wallet .......................................................................................................
 
                             $new_bal_process = $balance - $planPrice;
